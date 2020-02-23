@@ -224,6 +224,9 @@ target_num_dict = {
     "9格霰弹打3": 2.38,  # 崖心2
 }
 
+for k in target_num_dict.keys():
+    target_num_dict[k] = 3
+
 
 class StateData:
     def __init__(self, info_dict, dmg_type, is_skill_state=False):

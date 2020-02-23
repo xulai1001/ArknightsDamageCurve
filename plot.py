@@ -8,6 +8,7 @@ import matplotlib.image as image
 from matplotlib.ticker import *
 from matplotlib.offsetbox import *
 from character import *
+from pprint import pprint
 
 # ========== Preset some params for Matplotlib ==========
 # You may change fonts. Just follow instructions of Matplotlib
@@ -108,6 +109,9 @@ def plot_curve(char_dict, stage, write_file, axes, pick_list, defense, mr,
                 slay_list:      <list> info used in `plot_slay_line`
     """
     legend_list, slay_list = list(), list()
+    y_labels = []
+    dps_list = []
+    colors = []
     for desc, char in char_dict.items():
         # print(desc)
         # Filter characters
@@ -120,31 +124,37 @@ def plot_curve(char_dict, stage, write_file, axes, pick_list, defense, mr,
         # Plot damage curve for each character
         damage_node = char.simulate(defense, mr)
         damage_record = "\t".join(["(%.3f, %.0f)" % (x[0], x[1]) for x in damage_node])
+        dps = damage_node[-1][1] / damage_node[-1][0]
+        dps_list.append(round(dps))
 
-        x_labels = [x[0] for x in damage_node]
-        y_labels = [x[1] for x in damage_node]
+
+        #x_labels = [x[0] for x in damage_node]
+        #y_labels = [x[1] for x in damage_node]
 
         desc = description_level_change(stage, char, desc)
+        y_labels.append(desc)
+        colors.append(color_dict[char.name])
 
-        axes.plot(x_labels, y_labels, label=desc, c=color_dict[char.name], alpha=0.8, ls=ls_dict[char.rarity],
-                  lw=lw_dict[char.skill_order], marker=mk_dict[char.rarity], ms=ms_dict[char.skill_order])
-
+       # axes.plot(x_labels, y_labels, label=desc, c=color_dict[char.name], alpha=0.8, ls=ls_dict[char.rarity],
+       #           lw=lw_dict[char.skill_order], marker=mk_dict[char.rarity], ms=ms_dict[char.skill_order])
         # Write data
         write_file.write(desc + "\t" + damage_record + "\n")
 
         # Prepare data for legend
-        legend_list.append([char, desc, y_labels[-1]])
+        legend_list.append([char, desc, damage_node[-1][1]])
 
-        # Prepare data for slay line
-        if show_slay_line:
-            slay_time = -1
-            for t, dmg in damage_node:
-                if dmg > target_hp:
-                    slay_time = t
-                    break
-            if 0 <= slay_time <= 300:
-                slay_text = "%s%s, %.1f s" % (char.name, char.skill_order, slay_time)
-                slay_list.append([char, slay_text, slay_time])
+    # sort    
+    dps_list, colors, y_labels = zip(*sorted(zip(dps_list, colors, y_labels)))
+    pprint(y_labels)
+    pprint(dps_list)
+    axes.barh(y_labels, dps_list, 
+        color=colors, alpha=0.8)
+    i = 0
+    for x, y in zip(dps_list, y_labels):
+        axes.text(dps_list[i] + 10, i - 0.05, dps_list[i])
+        i+=1
+
+    axes.set_xlim([0, dps_list[-1] * 1.1])
 
     return legend_list, slay_list
 
@@ -344,10 +354,10 @@ def find_available_filename(stage, pick_list_name, multi_target_desc, enemy=None
             file_name = "figure/%s_%s_%s_%s(%s)" % (stage, enemy, pick_list_name, multi_target_desc, cnt)
     else:
         file_name = "figure/%s_%s防_%s法抗_%s_%s" % (stage, defense, mr, pick_list_name, multi_target_desc)
-        cnt = 0
-        while os.path.exists(file_name + ".pdf") or os.path.exists(file_name + ".png"):
-            cnt += 1
-            file_name = "figure/%s_%s防_%s法抗_%s_%s(%s)" % (stage, defense, mr, pick_list_name, multi_target_desc, cnt)
+     #   cnt = 0
+     #   while os.path.exists(file_name + ".pdf") or os.path.exists(file_name + ".png"):
+     #       cnt += 1
+     #       file_name = "figure/%s_%s防_%s法抗_%s_%s(%s)" % (stage, defense, mr, pick_list_name, multi_target_desc, cnt)
     return file_name
 
 
@@ -414,20 +424,20 @@ def set_damage_baseline(char_dict, stage, baseline, defense, mr, target_hp):
 
 def configure_mpl(axes, title, multi_target_lable=False):
     axes.set_title(title, fontdict=ExtraGiantFont)
-    axes.set_xlabel('时间', fontdict=GiantFont)
-    axes.set_ylabel('伤害总量', fontdict=GiantFont)
-    if multi_target_lable:
-        axes.set_xlim([-10, 460])
-    else:
-        axes.set_xlim([-10, 430])
-    axes.set_xticks([30 * k for k in range(11)])
-    axes.yaxis.set_major_locator(MultipleLocator(50000))
-    axes.grid(axis="both", ls=(10, (30, 5)), c="lightgray")
-    axes.margins(0, 0.05)
-    plt.subplots_adjust(top=0.95, bottom=0.08, right=0.98, left=0.07, hspace=0, wspace=0)
+    #axes.set_xlabel('时间', fontdict=GiantFont)
+    #axes.set_ylabel('伤害总量', fontdict=GiantFont)
+    #if multi_target_lable:
+    #    axes.set_xlim([-10, 460])
+    #else:
+    #    axes.set_xlim([-10, 430])
+    #axes.set_xticks([30 * k for k in range(11)])
+    #axes.yaxis.set_major_locator(MultipleLocator(50000))
+    #axes.grid(axis="both", ls=(10, (30, 5)), c="lightgray")
+    axes.margins(0.05, 0.05)
+    plt.subplots_adjust(top=0.95, bottom=0.08, right=0.98, left=0.1, hspace=0, wspace=0)
 
 
-def plot(stage, pick_list, pick_list_name, baseline, enemy=None, defense=300, mr=30,
+def plot(stage, pick_list, pick_list_name, baseline, enemy=None, defense=2000, mr=0,
          show_slay_line=True, multi_target=True, ignore_polish=True):
     """
     Plot damage curve.
@@ -509,25 +519,25 @@ def plot(stage, pick_list, pick_list_name, baseline, enemy=None, defense=300, mr
     char_dict = modify_data(f, stage, multi_target)
 
     # Configure Matplotliba
-    title = "%s，%s防御，%s法抗，300秒内输出曲线，%s" % (stage, defense, mr, multitarget2str[multi_target])
+    title = "%s，%s防御，%s法抗，300秒平均Dps，%s" % (stage, defense, mr, multitarget2str[multi_target])
     configure_mpl(ax, title, multi_target)
 
     # Set damage baseline
-    damage_baseline = set_damage_baseline(char_dict, stage, baseline, defense, mr, target_hp)
+    # damage_baseline = set_damage_baseline(char_dict, stage, baseline, defense, mr, target_hp)
 
     # Plot curve
     legend_list, slay_list = plot_curve(char_dict, stage, write_file, ax, pick_list, defense, mr, baseline,
                                         show_slay_line, target_hp)
 
     # Plot legends
-    max_mamage = plot_legend(ax, legend_list, damage_baseline, ignore_polish, multi_target)
+   # max_mamage = plot_legend(ax, legend_list, damage_baseline, ignore_polish, multi_target)
 
     # Plot slay line
-    if show_slay_line:
-        plot_slay_line(ax, slay_list, target_num, enemy, target_hp, max_mamage)
+   # if show_slay_line:
+   #     plot_slay_line(ax, slay_list, target_num, enemy, target_hp, max_mamage)
 
     # Save result
-    plt.savefig(file_name + ".pdf")
+   # plt.savefig(file_name + ".pdf")
     plt.savefig(file_name + ".png")
     # plt.show()
     plt.clf()
@@ -610,14 +620,25 @@ DefaultPickList = {
         "Baseline": None,
         "IgnorePolish": False
     },
+    "Arts": {
+        "PickListName": "法伤",
+        "PickList": 
+            ["地灵", "真理", "格劳克斯", "安洁莉娜", "初雪",
+             "雷蛇", "坚雷", "白雪", "因陀罗",
+             "夜烟", "夜魔", "阿米娅", "艾雅法拉", "格雷伊", "远山", "天火", "莫斯提马", "伊芙利特",
+             "布洛卡", "星极", "拉普兰德2", "陈2", "慕斯"
+             ],
+        "Baseline": None,
+        "IgnorePolish": False
+    }
 }
 
 if __name__ == "__main__":
     # Parameters
     # TODO: You can set your parameters below
     Stage = "29010"
-    Pick = DefaultPickList["MeleePhysical"]
-    Enemy = "伐木老手"
+    Pick = DefaultPickList["Arts"]
+    Enemy = None # "伐木老手"
     # Enemy = "梅菲斯特"
     # Enemy = "重装五十夫长"
 
@@ -625,7 +646,7 @@ if __name__ == "__main__":
     PickListName = Pick["PickListName"]
     Baseline = Pick["Baseline"]
     ShowSlayLine = Pick.get("ShowSlayLine", True)
-    MultiTarget = Pick.get("MultiTarget", True)
+    MultiTarget = False # Pick.get("MultiTarget", True)
     IgnorePolish = Pick.get("IgnorePolish", False)
     # End Params
 
